@@ -26,14 +26,14 @@ chunks = splitter.split_documents(docs)
 
 embed_model = BedrockEmbeddings(
     model_id="amazon.titan-embed-text-v1",
-    region_name=os.getenv("AWS_DEFAULT_REGION")
+    region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 )
 vector_db = FAISS.from_documents(chunks, embed_model)
 retriever = vector_db.as_retriever()
 
 llm = Bedrock(
     model_id="amazon.titan-text-express-v1",
-    region_name=os.getenv("AWS_DEFAULT_REGION")
+    region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 )
 qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
