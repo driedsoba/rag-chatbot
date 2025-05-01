@@ -40,5 +40,5 @@ qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 # 3) Chainlit handler
 @cl.on_message
 async def main(message: str):
-    answer = qa_chain.run(message)
+    answer = await qa_chain.arun(message)
     await cl.send_message(answer)
