@@ -3,12 +3,14 @@ import os
 import asyncio
 from dotenv import load_dotenv
 import boto3
+
 from langchain_community.embeddings.bedrock import BedrockEmbeddings
 from langchain_community.llms.bedrock import Bedrock
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
+
 import chainlit as cl
 
 # Load .env
@@ -27,25 +29,25 @@ chunks = splitter.split_documents(docs)
 
 embed_model = BedrockEmbeddings(
     model_id="amazon.titan-embed-text-v1",
-    region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+    region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
 )
 vector_db = FAISS.from_documents(chunks, embed_model)
 retriever = vector_db.as_retriever()
 
 llm = Bedrock(
     model_id="amazon.titan-text-express-v1",
-    region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+    region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
 )
 qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
-# 3) Chainlit handler
+# 3) Chainlit handler — extract .content, use .arun for async
 @cl.on_message
-async def main(message: str):
-    # offload the synchronous .run() to a threadpool
-    loop = asyncio.get_event_loop()
-    answer = await loop.run_in_executor(
-        None,               # use default ThreadPoolExecutor
-        qa_chain.run,       
-        message             # single argument
-    )
+async def main(message):
+    # pull the raw string out of the Chainlit Message
+    user_input = message.content
+
+    # run the QA chain asynchronously
+    answer = await qa_chain.arun(user_input)
+
+    # send it back
     await cl.send_message(answer)
