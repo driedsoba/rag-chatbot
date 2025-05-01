@@ -36,20 +36,28 @@ retriever = vector_db.as_retriever()
 llm = Bedrock(
     model_id="amazon.titan-text-express-v1",
     region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
-    streaming=True  # ← must be True for Chainlit async
+    streaming=True  # ← True for Chainlit async
 )
 qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
 # 3) Chainlit handler
+last_etag = None
+
 @cl.on_message
-async def main(message: cl.Message):
-    user_input = message.content
+async def main(message: str):
+    global last_etag, qa_chain
 
-    # loading indicator
-    await Message("Thinking…").send()
+    # check current ETag of the S3 object
+    head = s3.head_object(Bucket=bucket, Key="data/faq.txt")
+    if head["ETag"] != last_etag:
+        # new file: re-download and rebuild
+        s3.download_file(bucket, "data/faq.txt", "data/faq.txt")
+        docs = TextLoader("data/faq.txt").load()
+        chunks = CharacterTextSplitter(chunk_size=500, chunk_overlap=50).split_documents(docs)
+        vector_db = FAISS.from_documents(chunks, embed_model)
+        retriever = vector_db.as_retriever()
+        qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+        last_etag = head["ETag"]
 
-    # run the RAG chain
-    answer = await qa_chain.arun(user_input)
-
-    # send the final answer
-    await Message(answer).send()
+    answer = await qa_chain.arun(message)
+    await cl.send_message(answer)
