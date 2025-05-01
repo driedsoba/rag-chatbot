@@ -44,20 +44,14 @@ qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 last_etag = None
 
 @cl.on_message
-async def main(message: str):
-    global last_etag, qa_chain
+async def main(message: cl.Message):
+    user_input = message.content
 
-    # check current ETag of the S3 object
-    head = s3.head_object(Bucket=bucket, Key="data/faq.txt")
-    if head["ETag"] != last_etag:
-        # new file: re-download and rebuild
-        s3.download_file(bucket, "data/faq.txt", "data/faq.txt")
-        docs = TextLoader("data/faq.txt").load()
-        chunks = CharacterTextSplitter(chunk_size=500, chunk_overlap=50).split_documents(docs)
-        vector_db = FAISS.from_documents(chunks, embed_model)
-        retriever = vector_db.as_retriever()
-        qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
-        last_etag = head["ETag"]
+    # loading indicator
+    await Message("Thinking…").send()
 
-    answer = await qa_chain.arun(message)
-    await cl.send_message(answer)
+    # run the RAG chain
+    answer = await qa_chain.arun(user_input)
+
+    # send the final answer
+    await Message(answer).send()
