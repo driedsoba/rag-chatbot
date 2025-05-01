@@ -39,14 +39,13 @@ llm = Bedrock(
 qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
 # 3) Chainlit handler
- @cl.on_message
- async def main(message: str):
--    answer = await qa_chain.arun(message)
-+    # offload the synchronous .run() to a threadpool
-+    loop = asyncio.get_event_loop()
-+    answer = await loop.run_in_executor(
-+        None,               # use default ThreadPoolExecutor
-+        qa_chain.run,       
-+        message             # single argument
-+    )
-     await cl.send_message(answer)
+@cl.on_message
+async def main(message: str):
+    # offload the synchronous .run() to a threadpool
+    loop = asyncio.get_event_loop()
+    answer = await loop.run_in_executor(
+        None,               # use default ThreadPoolExecutor
+        qa_chain.run,       
+        message             # single argument
+    )
+    await cl.send_message(answer)
