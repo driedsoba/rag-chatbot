@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8000
 
 # 7. Start Chainlit using our new app.py
-CMD ["chainlit","run","app.py","--host","127.0.0.1","--port","8000"]
+CMD ["chainlit","run","app.py","--host","0.0.0.0","--port","8000"]
