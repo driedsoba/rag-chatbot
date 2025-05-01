@@ -14,7 +14,9 @@ load_dotenv()
 
 # 1. Download FAQ document from S3
 s3 = boto3.client('s3', region_name="ap-southeast-1")
-bucket = os.getenv("S3_BUCKET", "rag-faqstore" )
+bucket = os.getenv("S3_BUCKET") # rag-faqstore
+if bucket is None:
+    raise ValueError("S3_BUCKET environment variable not set.")
 s3.download_file(bucket, 'faq.txt', 'data/faq.txt')
 
 # 2. Load & split the document
