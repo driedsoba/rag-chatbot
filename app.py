@@ -16,7 +16,7 @@ load_dotenv()
 # 1) Download faq.txt from S3
 s3 = boto3.client("s3", region_name=os.getenv("AWS_DEFAULT_REGION"))
 bucket = os.getenv("S3_BUCKET")
-s3.download_file(bucket, "faq.txt", "data/faq.txt")
+s3.download_file(bucket, "data/faq.txt", "data/faq.txt")
 
 # 2) Prepare the RAG chain
 loader = TextLoader("data/faq.txt")
