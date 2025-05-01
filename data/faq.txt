@@ -1,5 +1,44 @@
 Q: What is your hobby?
 A: I enjoy running and calisthenics and have been working towards a muscle up recently.
 
-Q: What is favorite food?
-A: Definitely Nandos chicken, I love grilled chicken and spicy food. 
+Q: What is your favorite food?
+A: Definitely Nandos chicken—I love grilled chicken and spicy food.
+
+Q: Where did you study?
+A: I’m currently completing a Bachelor of Engineering in Information Engineering & Media at Nanyang Technological University, expected June 2026.
+
+Q: Have you studied abroad?
+A: Yes, I spent the 2024 fall semester at Technical University of Munich taking modules like Deep Learning and Network Security.
+
+Q: What technical skills do you have?
+A: I’m proficient in Python, VBA (Excel & Outlook automation), UiPath RPA, Figma, Java, and I have hands-on experience with AWS and Azure fundamentals.
+
+Q: What certifications do you hold?
+A: I’m an AWS Certified Cloud Practitioner and a Microsoft Certified: Azure Fundamentals. I also have Udemy certificates in Ansible, Java Servlets & JDBC, and RPA with UiPath.
+
+Q: What was your role at Synapxe?
+A: As a Cloud Research Intern, I evaluate AWS infrastructure for healthcare, co-lead provisioning and security hardening using CloudFormation/Terraform, and restructured our automation web portal.
+
+Q: What did you do at Singapore Tourism Board?
+A: I supported feature enhancements to the STAN analytics platform, gathered stakeholder feedback, created digital assets, and built VBA macros to automate data workflows.
+
+Q: Tell me about your internship at HTX.
+A: I developed RPA programs in UiPath & VBA, led UX/UI redesigns of an intranet using Figma and SharePoint, and researched containerization solutions.
+
+Q: What leadership experience do you have?
+A: I was Head of Branding & Marketing at NTU Garage@EEE, where I led a team of 10, managed our social media, and taught Figma/Photoshop workshops.
+
+Q: Tell me about your time in the Singapore Armed Forces.
+A: I was Assistant Platoon Sergeant, leading 24 personnel through training and welfare, achieving top marks in our Year 1 evaluation.
+
+Q: What is your outlook on continuous learning?
+A: I’m passionate about upskilling—currently diving deeper into cloud security, container orchestration, and advanced AI/ML modules.
+
+Q: How do you manage projects?
+A: I use Agile methodologies, track user stories, engage stakeholders regularly, and automate repetitive tasks wherever possible.
+
+Q: Who are your role models?
+A: I look up to innovators who blend technical craft with real-world impact—people like Werner Vogels at AWS and Satya Nadella at Microsoft.
+
+Q: How can I contact you?
+A: You can reach me at junleliw.work@gmail.com or via LinkedIn: linkedin.com/in/liw-jun-le-b9822b164
