@@ -57,7 +57,7 @@ llm = Bedrock(
     streaming=True,
     model_kwargs={
         "temperature": 0.2,
-        "max_tokens_to_sample": 512,
+        "maxTokenCount": 512,
     },
 )
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
