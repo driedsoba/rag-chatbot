@@ -76,11 +76,11 @@ async def main(message: cl.Message):
     # 5b) Quick similarity‐score check to handle “I don’t know”
     docs_and_scores = vector_db.similarity_search_with_score(user_text, k=5)
     if not docs_and_scores or docs_and_scores[0][1] < 0.1:
-        await message.send("Sorry, I don’t have data on that—can you rephrase?")
+        await cl.Message(content="Sorry, I don’t have data on that—can you rephrase?").send()
         return
 
     # 5c) Run the conversational RAG chain
     result = await qa_chain.ainvoke({"question": user_text})
 
     # 5d) Send the answer back to the UI
-    await message.send(result["answer"])
+    await cl.Message(content=result["answer"]).send()
