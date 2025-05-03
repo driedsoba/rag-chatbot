@@ -92,7 +92,7 @@ async def main(message: Message):
     ]
 
     # 4c) stream the LLM’s answer
-    reply = Message()
+    reply = Message(content="")
     async for chunk in converse_stream(MODEL_ID, msgs):
         await reply.stream(chunk)
     await reply.send()
