@@ -1,7 +1,7 @@
 [UI]
 name       = "Chat with Jun Le"
 github     = "https://github.com/driedsoba"
-custom_css = "/stylesheet.css" 
+custom_css = "/public/stylesheet.css"
 
 # Light theme
 [UI.theme.light]
