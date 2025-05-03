@@ -83,7 +83,7 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     retriever=retriever,
     memory=memory,
     chain_type="stuff",  # force the “stuff” chain
-    prompt=prompt  # pass in your custom prompt
+    chain_type_kwargs={"prompt": prompt}  # pass in custom prompt
 )
 
 # 5) Chainlit handler
