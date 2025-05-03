@@ -1,33 +1,31 @@
 import os
-import json
-import boto3
-from dotenv import load_dotenv
 import chainlit as cl
-from chainlit import Message
+from dotenv import load_dotenv
+import boto3
 
-from langchain_community.document_loaders import TextLoader
+from langchain_community.embeddings.bedrock import BedrockEmbeddings
+from langchain_community.llms.bedrock import Bedrock
+from langchain_community.document_loaders import TextLoader, DirectoryLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.vectorstores.faiss import FAISS
-from langchain_community.embeddings.bedrock import BedrockEmbeddings
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
 
 load_dotenv()
 
-# 1) Download your FAQ from S3
-s3 = boto3.client("s3", region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
-s3.download_file(
-    os.getenv("S3_BUCKET"),
-    "data/faq.txt",
-    "data/faq.txt"
-)
+# 1) Sync docs from S3
+s3 = boto3.client("s3", region_name=os.getenv("AWS_DEFAULT_REGION"))
+s3.download_file(os.getenv("S3_BUCKET"), "data/faq.txt", "data/faq.txt")
 
-# 2) Load, split, embed & build (or reload) FAISS index
-loader = TextLoader("data/faq.txt")
+# 2) Load & split
+loader = DirectoryLoader("data", glob="**/*.txt", loader_cls=TextLoader)
 docs = loader.load()
 splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 chunks = splitter.split_documents(docs)
 
+# 3) Embeddings & (persistent) FAISS
 embed_model = BedrockEmbeddings(
-    model_id=os.getenv("EMBED_MODEL_ID"),
+    model_id="amazon.titan-embed-text-v1",
     region_name=os.getenv("AWS_DEFAULT_REGION")
 )
 
@@ -43,69 +41,32 @@ else:
 
 retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 
-# 3) Prepare Bedrock streaming client
-bedrock = boto3.client("bedrock-runtime", region_name=os.getenv("AWS_DEFAULT_REGION"))
-MODEL_ID = os.getenv("LLM_MODEL_ID")
-
-async def converse_stream(model_id: str, messages: list[dict], temperature=0.2, max_tokens=400):
-    payload = {
-        "messages": messages,
-        "inferenceConfig": {
-            "temperature": temperature,
-            "maxTokens": max_tokens
-        }
+# 4) LLM & Conversational Chain
+llm = Bedrock(
+    model_id="amazon.titan-text-express-v1",
+    region_name=os.getenv("AWS_DEFAULT_REGION"),
+    streaming=True,
+    model_kwargs={
+        "temperature": 0.2,
+        "max_tokens_to_sample": 512,
     }
+)
 
-    response = bedrock.invoke_model_with_response_stream(
-        modelId=model_id,
-        body=json.dumps(payload),
-        contentType="application/json"
-    )["responseStream"]
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
-    for event in response:
-        delta = event.get("contentBlockDelta", {}).get("delta", {})
-        text = delta.get("text")
-        if text:
-            yield text
+qa_chain = ConversationalRetrievalChain.from_llm(
+    llm=llm,
+    retriever=retriever,
+    memory=memory
+)
 
-# 4) Chainlit handler
+# 5) Handlers
 @cl.on_message
-async def main(message: Message):
-    user_text = message.content
-
-    # 1) similarity search *with* scores
-    docs_and_scores = vector_db.similarity_search_with_score(user_text, k=5)
-    if not docs_and_scores or docs_and_scores[0][1] < 0.1:
-        await Message(content="Sorry, I don’t have data on that—can you rephrase?").send()
+async def main(user_input: str):
+    docs_and_scores = retriever.get_relevant_documents(user_input)
+    if not docs_and_scores or max(d.score for d in docs_and_scores) < 0.1:
+        await cl.send_message("Sorry, I don’t have data on that—can you rephrase?")
         return
 
-    # 2) assemble context
-    context = "\n\n".join(doc.page_content for doc, _ in docs_and_scores)
-    system_prompt = (
-        "You are Jun Le’s personal assistant helping to answer questions about him.\n\n"
-        + context
-    )
-
-    # 3) build message blocks
-    msgs = [
-        {
-          "role": "system",
-          "content": [
-            {"contentType": "text/plain", "text": system_prompt}
-          ]
-        },
-        {
-          "role": "user",
-          "content": [
-            {"contentType": "text/plain", "text": user_text}
-          ]
-        }
-    ]
-
-    # 4) stream the answer
-    reply = Message(content="")
-    async for chunk in converse_stream(MODEL_ID, msgs):
-        await reply.stream(chunk)
-    await reply.send()
-
-
+    result = await qa_chain.acall({"question": user_input})
+    await cl.send_message(result["answer"])
