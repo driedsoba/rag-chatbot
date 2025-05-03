@@ -71,20 +71,18 @@ def converse_stream(model_id: str, messages: list[dict], temperature=0.2, max_to
 # 4) Chainlit handler
 @cl.on_message
 async def main(message: Message):
-    # extract the raw user input
-    user_text = message.content  
+    user_text = message.content
 
-    # 4a) Retrieve context
-    docs_and_scores = retriever.get_relevant_documents(user_text)
-    if not docs_and_scores or max(d.score for d in docs_and_scores) < 0.1:
-        # simple fallback
+    # 4a) similarity search *with* scores
+    docs_and_scores = vector_db.similarity_search_with_score(user_text, k=5)
+    if not docs_and_scores or docs_and_scores[0][1] < 0.1:
         await Message(content="Sorry, I don’t have data on that—can you rephrase?").send()
         return
 
-    # 4b) Build system prompt with context
-    context = "\n\n".join(d.page_content for d in docs_and_scores)
+    # 4b) assemble context
+    context = "\n\n".join(doc.page_content for doc, score in docs_and_scores)
     system_prompt = (
-        "You are Jun Le’s personal assistant helping to answer people's questions about him. Use the following context to answer:\n\n"
+        "You are Jun Le’s personal assistant helping to answer people's question about him. Use the following context to answer:\n\n"
         + context
     )
 
@@ -93,8 +91,9 @@ async def main(message: Message):
         {"role": "user",   "content": [{"text": user_text}]}
     ]
 
-    # 4c) Stream the answer back
+    # 4c) stream the LLM’s answer
     reply = Message()
     async for chunk in converse_stream(MODEL_ID, msgs):
         await reply.stream(chunk)
     await reply.send()
+
