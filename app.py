@@ -13,14 +13,16 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 
-# 0) ENV
+# ─────────────────────────────────────────────────────────────────────────────
+# 0) Load ENV
 load_dotenv()
-AWS_REGION  = os.getenv("AWS_DEFAULT_REGION","us-east-1")
+AWS_REGION  = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 S3_BUCKET   = os.getenv("S3_BUCKET")
-EMBED_MODEL = os.getenv("EMBED_MODEL_ID","amazon.titan-embed-text-v1")
-LLM_MODEL   = os.getenv("LLM_MODEL_ID","amazon.titan-text-express-v1")
+EMBED_MODEL = os.getenv("EMBED_MODEL_ID", "amazon.titan-embed-text-v1")
+LLM_MODEL   = os.getenv("LLM_MODEL_ID",   "amazon.titan-text-express-v1")
+# ─────────────────────────────────────────────────────────────────────────────
 
-# 1) Sync FAQ.txt from S3
+# 1) Sync docs from S3
 s3 = boto3.client("s3", region_name=AWS_REGION)
 os.makedirs("data", exist_ok=True)
 s3.download_file(S3_BUCKET, "data/faq.txt", "data/faq.txt")
@@ -31,17 +33,17 @@ docs     = loader.load()
 splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 chunks   = splitter.split_documents(docs)
 
-# 3) Embed + FAISS (persist to disk)
+# 3) Embeddings & FAISS (persist once)
 embed_model = BedrockEmbeddings(model_id=EMBED_MODEL, region_name=AWS_REGION)
 if os.path.exists("faiss_index"):
     vector_db = FAISS.load_local("faiss_index", embed_model, allow_dangerous_deserialization=True)
 else:
     vector_db = FAISS.from_documents(chunks, embed_model)
     vector_db.save_local("faiss_index")
-retriever = vector_db.as_retriever(search_kwargs={"k":5})
+retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 
-# 4) Prompt template (2-sentence max)
-SHORT_PROMPT = """You are Jun Le’s friendly assistant. Using the context below, answer the user in **no more than two sentences**, and paraphrase rather than copy.
+# 4) A short, 2-sentence max prompt that paraphrases
+STUFF_PROMPT = """You are Jun Le’s friendly assistant. Using the context below, answer the user in **at most two sentences**, and paraphrase rather than copy.
 
 Context:
 {context}
@@ -50,14 +52,14 @@ Question:
 {question}
 
 Answer:"""
-prompt = PromptTemplate(input_variables=["context","question"], template=SHORT_PROMPT)
+prompt = PromptTemplate(input_variables=["context","question"], template=STUFF_PROMPT)
 
-# 5) LLM + conversational chain w/ memory
+# 5) LLM + conversation chain w/ memory
 llm = Bedrock(
     model_id=LLM_MODEL,
     region_name=AWS_REGION,
     streaming=True,
-    model_kwargs={"temperature":0.2,"maxTokenCount":512}
+    model_kwargs={"temperature": 0.2, "maxTokenCount": 512},
 )
 memory  = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 qa_chain = ConversationalRetrievalChain.from_llm(
@@ -65,27 +67,32 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     retriever=retriever,
     memory=memory,
     chain_type="stuff",
-    combine_docs_chain_kwargs={"prompt":prompt},
+    combine_docs_chain_kwargs={"prompt": prompt},
 )
 
-# 6a) when a user first connects, send a greeting
-@cl.on_connect
-async def connect():
-    await cl.Message(
-        content="👋 Hi, I’m Jun Le’s personal assistant. Ask me anything about Jun Le!"
-    ).send()
+# ─────────────────────────────────────────────────────────────────────────────
+# 6) One-time greeting flag
+first_message = True
 
-# 6b) on every message, run your RAG chain
 @cl.on_message
 async def main(message: cl.Message):
+    global first_message
+
     user_text = message.content.strip()
 
-    # “I don’t know” fallback
+    # 6a) Send a one-time “hello” before doing anything else
+    if first_message:
+        await cl.Message(
+            content="👋 Hi, I’m Jun Le’s personal assistant! Ask me anything about Jun Le in two sentences or less."
+        ).send()
+        first_message = False
+
+    # 6b) “I don’t know” fallback
     docs_and_scores = vector_db.similarity_search_with_score(user_text, k=5)
     if not docs_and_scores or docs_and_scores[0][1] < 0.1:
-        await cl.Message(content="Sorry, I don’t have that info—can you rephrase?").send()
+        await cl.Message(content="Sorry, I don’t have that info—could you rephrase?").send()
         return
 
-    # chain + reply
+    # 6c) Run RAG chain and reply
     res = await qa_chain.ainvoke({"question": user_text})
     await cl.Message(content=res["answer"]).send()
