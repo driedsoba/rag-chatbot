@@ -84,3 +84,15 @@ async def main(message: cl.Message):
 
     # 5d) Send the answer back to the UI
     await cl.Message(content=result["answer"]).send()
+
+# 6) Chainlit handler: when the chat starts, assume Jun Le Persona
+@cl.on_chat_start
+async def init_session():
+    # send Jun Le’s persona into the conversation
+    await cl.Message(
+        content=(
+            "👋 Hi, I’m Jun Le’s personal assistant.\n\n"
+            "Jun Le is a 4th-year Information Engineering & Media student at NTU, "
+            "now interning at Synapxe. Loves running, calisthenics, and spicy chicken!"
+        )
+    ).send()
