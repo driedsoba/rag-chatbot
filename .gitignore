@@ -1,12 +1,17 @@
-# Python
+# Python bytecode and cache files
 __pycache__/
 *.py[cod]
-*.env
-
-# Local env
-chatvenv/
-env/
-.venv/
+*.pyc
 
 # Chainlit output
 /.chainlit/
+
+# Git-related files
+.git
+
+# Data and index files
+data/
+faiss_index/
+
+# Security keys
+*.pem
