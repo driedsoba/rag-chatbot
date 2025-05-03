@@ -1,14 +1,14 @@
 [UI]
 name       = "Chat with Jun Le"
 github     = "https://github.com/driedsoba"
-custom_css = "/public/stylesheet.css"
+custom_css = "/stylesheet.css" 
 
 # Light theme
 [UI.theme.light]
 background = "rgb(238,238,238)"   # #EEEEEE
 paper      = "#FFFFFF"
   [UI.theme.light.primary]
-  main  = "#00ADB5"               # accent teal
+  main  = "#00ADB5"
   light = "#60EEDD"
   dark  = "#007F7F"
 
