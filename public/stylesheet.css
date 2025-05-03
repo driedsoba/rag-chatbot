@@ -1,0 +1,114 @@
+/* General page styling */
+body {
+  font-family: "Inter", sans-serif;
+  /* Clean, modern font (if available) */
+  background-color: #222831;
+  color: #EEEEEE;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Light/Dark theme specific overrides using data-theme attribute if available */
+:root[data-theme="light"] body {
+  background-color: #EEEEEE;
+  color: #222831;
+}
+
+:root[data-theme="dark"] body {
+  background-color: #222831;
+  color: #EEEEEE;
+}
+
+/* Chat container and message bubbles */
+.chat-container .chat-message {
+  max-width: 60%;
+  /* Limit width for better readability */
+  margin: 0.5rem 0.5rem;
+  /* Spacing between messages */
+  padding: 0.6rem 1rem;
+  /* Inner padding for bubble */
+  border-radius: 0.5rem;
+  /* Rounded corners for bubbles */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  /* Subtle shadow for depth */
+}
+
+/* User messages (assumed to be odd-numbered messages) */
+.chat-container .chat-message:nth-child(odd) {
+  background-color: #00ADB5;
+  /* User bubble in accent teal */
+  color: #FFFFFF;
+  /* White text for contrast on accent */
+  margin-left: auto;
+  /* Push user message to the right */
+}
+
+/* Bot/assistant messages (assumed even-numbered messages) */
+.chat-container .chat-message:nth-child(even) {
+  background-color: #f9f9f9;
+  /* Bot bubble: near-white in light mode by default */
+  color: #000000;
+  /* Dark text on light bot bubble */
+  margin-right: auto;
+  /* Align bot message to the left */
+}
+
+/* Adjust bot bubble color for dark theme */
+:root[data-theme="dark"] .chat-container .chat-message:nth-child(even) {
+  background-color: #393E46;
+  /* Dark grey bubble for bot in dark mode */
+  color: #EEEEEE;
+  /* Light text on dark bubble */
+}
+
+/* Input text box styling */
+input[type="text"] {
+  background-color: #FFFFFF;
+  color: #000000;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 0.3rem;
+}
+
+:root[data-theme="dark"] input[type="text"] {
+  background-color: #393E46;
+  color: #FFFFFF;
+  border: 1px solid #555;
+}
+
+input[type="text"]:focus {
+  outline: 2px solid #00ADB5;
+  /* Highlight input border with accent on focus */
+}
+
+/* Buttons and link interactions */
+button,
+a {
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s, filter 0.3s;
+}
+
+button:hover,
+a:hover {
+  filter: brightness(110%);
+  /* Slightly brighten on hover for feedback */
+}
+
+/* Accent-colored buttons (e.g., primary buttons) */
+button.MuiButton-root,
+.MuiButton-containedPrimary {
+  background-color: #00ADB5 !important;
+  color: #FFFFFF !important;
+}
+
+button.MuiButton-root:hover,
+.MuiButton-containedPrimary:hover {
+  background-color: #00BFC7 !important;
+  /* a slightly lighter teal on hover */
+}
+
+/* Header GitHub icon hover (if any) */
+header svg:hover {
+  fill: #00ADB5;
+  /* Color the icon with accent on hover */
+  opacity: 0.8;
+}
