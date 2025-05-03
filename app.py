@@ -80,7 +80,7 @@ qa_chain = ConversationalRetrievalChain.from_llm(
 @cl.on_chat_start
 async def start():
     await cl.Message(
-        content="👋 Hi! I’m Jun Le’s personal assistant – ask me anything about him in two sentences or less."
+        content="👋 Hi! I’m Jun Le’s personal assistant – ask me anything about him."
     ).send()
 
 # 7) Handle incoming questions
