@@ -3,8 +3,6 @@ __pycache__/
 *.py[cod]
 *.pyc
 
-# Chainlit output
-/.chainlit/
 
 # Git-related files
 .git

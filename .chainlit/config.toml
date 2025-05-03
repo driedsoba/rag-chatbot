@@ -1,0 +1,22 @@
+[UI]
+name       = "Chat with Jun Le"
+github     = "https://github.com/driedsoba"
+custom_css = "/public/stylesheet.css"
+
+# Light theme
+[UI.theme.light]
+background = "rgb(238,238,238)"   # #EEEEEE
+paper      = "#FFFFFF"
+  [UI.theme.light.primary]
+  main  = "#00ADB5"               # accent teal
+  light = "#60EEDD"
+  dark  = "#007F7F"
+
+# Dark theme
+[UI.theme.dark]
+background = "rgb(34,40,49)"      # #222831
+paper      = "rgb(57,62,70)"      # #393E46
+  [UI.theme.dark.primary]
+  main  = "#00ADB5"
+  light = "#33F2EC"
+  dark  = "#008C8A"
