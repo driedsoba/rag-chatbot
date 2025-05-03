@@ -1,4 +1,3 @@
-# app.py
 import os
 import json
 import boto3
@@ -71,23 +70,27 @@ def converse_stream(model_id: str, messages: list[dict], temperature=0.2, max_to
 
 # 4) Chainlit handler
 @cl.on_message
-async def main(user_message: str):
+async def main(message: Message):
+    # extract the raw user input
+    user_text = message.content  
+
     # 4a) Retrieve context
-    docs_and_scores = retriever.get_relevant_documents(user_message)
+    docs_and_scores = retriever.get_relevant_documents(user_text)
     if not docs_and_scores or max(d.score for d in docs_and_scores) < 0.1:
-        await cl.send_message("Sorry, I don’t have data on that—can you rephrase?")
+        # simple fallback
+        await Message(content="Sorry, I don’t have data on that—can you rephrase?").send()
         return
 
     # 4b) Build system prompt with context
     context = "\n\n".join(d.page_content for d in docs_and_scores)
     system_prompt = (
-        "You are Jun Le’s personal assistant helping to answer people's query about him. Use the following context to answer:\n\n"
+        "You are Jun Le’s personal assistant helping to answer people's questions about him. Use the following context to answer:\n\n"
         + context
     )
 
     msgs = [
         {"role": "system", "content": [{"text": system_prompt}]},
-        {"role": "user",   "content": [{"text": user_message}]}
+        {"role": "user",   "content": [{"text": user_text}]}
     ]
 
     # 4c) Stream the answer back
