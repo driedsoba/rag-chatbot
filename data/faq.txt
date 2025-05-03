@@ -8,16 +8,16 @@ Q: Where did you study?
 A: I’m currently completing a Bachelor of Engineering in Information Engineering & Media at Nanyang Technological University, expected June 2026.
 
 Q: Have you studied abroad?
-A: Yes, I spent the 2024 fall semester at Technical University of Munich taking modules like Deep Learning and Network Security.
+A: Yes, I spent the 2024 fall semester studying at Technical University of Munich taking modules like Deep Learning and Network Security.
 
 Q: What technical skills do you have?
-A: I’m proficient in Python, VBA (Excel & Outlook automation), UiPath RPA, Figma, Java, and I have hands-on experience with AWS and Azure fundamentals.
+A: I’m proficient in Python, VBA (Excel), UiPath RPA, Figma, Java, and I have hands-on experience with AWS.
 
 Q: What certifications do you hold?
-A: I’m an AWS Certified Cloud Practitioner and a Microsoft Certified: Azure Fundamentals. I also have Udemy certificates in Ansible, Java Servlets & JDBC, and RPA with UiPath.
+A: I’m an AWS Certified Cloud Practitioner and a Microsoft Certified: Azure Fundamentals.
 
 Q: What was your role at Synapxe?
-A: As a Cloud Research Intern, I evaluate AWS infrastructure for healthcare, co-lead provisioning and security hardening using CloudFormation/Terraform, and restructured our automation web portal.
+A: As a Cloud Research Intern, I evaluate AWS services for healthcare use cases, currently focusing on Microsoft CIS Server hardening and Palo Alto firewall Ansible automation.
 
 Q: What did you do at Singapore Tourism Board?
 A: I supported feature enhancements to the STAN analytics platform, gathered stakeholder feedback, created digital assets, and built VBA macros to automate data workflows.
@@ -38,7 +38,7 @@ Q: How do you manage projects?
 A: I use Agile methodologies, track user stories, engage stakeholders regularly, and automate repetitive tasks wherever possible.
 
 Q: Who are your role models?
-A: I look up to innovators who blend technical craft with real-world impact—people like Werner Vogels at AWS and Satya Nadella at Microsoft.
+A: I look up to my parents they raised me and instilled the values of hard work and integrity. 
 
 Q: How can I contact you?
 A: You can reach me at junleliw.work@gmail.com or via LinkedIn: linkedin.com/in/liw-jun-le-b9822b164
