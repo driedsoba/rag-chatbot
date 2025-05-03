@@ -1,57 +1,97 @@
+# app.py
 import os
+import json
 import boto3
-import chainlit as cl
 from dotenv import load_dotenv
+import chainlit as cl
+from chainlit import Message
 
-from langchain_community.embeddings.bedrock import BedrockEmbeddings
-from langchain_community.llms.bedrock import Bedrock
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
+from langchain_community.vectorstores.faiss import FAISS
+from langchain_community.embeddings.bedrock import BedrockEmbeddings
 
-# 0) Load .env if present (optional)
 load_dotenv()
 
-# 1) Read config from env
-AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-S3_BUCKET           = os.getenv("S3_BUCKET")
-EMBED_MODEL_ID      = os.getenv("EMBED_MODEL_ID")
-LLM_MODEL_ID        = os.getenv("LLM_MODEL_ID")
-
-# 2) Download your FAQ from S3
-s3 = boto3.client("s3", region_name=AWS_DEFAULT_REGION)
-s3.download_file(S3_BUCKET, "data/faq.txt", "data/faq.txt")
-
-# 3) Load & split your FAQ
-loader   = TextLoader("data/faq.txt")
-docs     = loader.load()
-splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-chunks   = splitter.split_documents(docs)
-
-# 4) Embed + build FAISS index (in-memory)
-embed_model = BedrockEmbeddings(
-    model_id=EMBED_MODEL_ID,
-    region_name=AWS_DEFAULT_REGION
+# 1) Download your FAQ from S3
+s3 = boto3.client("s3", region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
+s3.download_file(
+    os.getenv("S3_BUCKET"),
+    "data/faq.txt",
+    "data/faq.txt"
 )
-vector_db = FAISS.from_documents(chunks, embed_model)
+
+# 2) Load, split, embed & build (or reload) FAISS index
+loader = TextLoader("data/faq.txt")
+docs = loader.load()
+splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+chunks = splitter.split_documents(docs)
+
+embed_model = BedrockEmbeddings(
+    model_id=os.getenv("EMBED_MODEL_ID"),
+    region_name=os.getenv("AWS_DEFAULT_REGION")
+)
+
+if os.path.exists("faiss_index"):
+    vector_db = FAISS.load_local(
+        "faiss_index",
+        embed_model,
+        allow_dangerous_deserialization=True
+    )
+else:
+    vector_db = FAISS.from_documents(chunks, embed_model)
+    vector_db.save_local("faiss_index")
+
 retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 
-# 5) Bedrock LLM (streaming for Chainlit)
-llm = Bedrock(
-    model_id=LLM_MODEL_ID,
-    region_name=AWS_DEFAULT_REGION,
-    streaming=True
-)
+# 3) Prepare Bedrock streaming client
+bedrock = boto3.client("bedrock-runtime", region_name=os.getenv("AWS_DEFAULT_REGION"))
+MODEL_ID = os.getenv("LLM_MODEL_ID")
 
-# 6) Build a simple RetrievalQA chain
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    retriever=retriever
-)
+def converse_stream(model_id: str, messages: list[dict], temperature=0.2, max_tokens=400):
+    payload = {
+        "messages": messages,
+        "inferenceConfig": {
+            "temperature": temperature,
+            "maxTokens": max_tokens
+        }
+    }
 
-# 7) Chainlit handler
+    response = bedrock.invoke_model_with_response_stream(
+        modelId=model_id,
+        body=json.dumps(payload),
+        contentType="application/json"
+    )["responseStream"]
+
+    for event in response:
+        delta = event.get("contentBlockDelta", {}).get("delta", {})
+        text = delta.get("text")
+        if text:
+            yield text
+
+# 4) Chainlit handler
 @cl.on_message
-async def main(message: str):
-    answer = await qa_chain.arun(message)
-    await cl.send_message(answer)
+async def main(user_message: str):
+    # 4a) Retrieve context
+    docs_and_scores = retriever.get_relevant_documents(user_message)
+    if not docs_and_scores or max(d.score for d in docs_and_scores) < 0.1:
+        await cl.send_message("Sorry, I don’t have data on that—can you rephrase?")
+        return
+
+    # 4b) Build system prompt with context
+    context = "\n\n".join(d.page_content for d in docs_and_scores)
+    system_prompt = (
+        "You are Jun Le’s personal assistant helping to answer people's query about him. Use the following context to answer:\n\n"
+        + context
+    )
+
+    msgs = [
+        {"role": "system", "content": [{"text": system_prompt}]},
+        {"role": "user",   "content": [{"text": user_message}]}
+    ]
+
+    # 4c) Stream the answer back
+    reply = Message()
+    async for chunk in converse_stream(MODEL_ID, msgs):
+        await reply.stream(chunk)
+    await reply.send()
