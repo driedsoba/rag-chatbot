@@ -47,7 +47,7 @@ retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 bedrock = boto3.client("bedrock-runtime", region_name=os.getenv("AWS_DEFAULT_REGION"))
 MODEL_ID = os.getenv("LLM_MODEL_ID")
 
-def converse_stream(model_id: str, messages: list[dict], temperature=0.2, max_tokens=400):
+async def converse_stream(model_id: str, messages: list[dict], temperature=0.2, max_tokens=400):
     payload = {
         "messages": messages,
         "inferenceConfig": {
