@@ -73,27 +73,39 @@ async def converse_stream(model_id: str, messages: list[dict], temperature=0.2, 
 async def main(message: Message):
     user_text = message.content
 
-    # 4a) similarity search *with* scores
+    # 1) similarity search *with* scores
     docs_and_scores = vector_db.similarity_search_with_score(user_text, k=5)
     if not docs_and_scores or docs_and_scores[0][1] < 0.1:
         await Message(content="Sorry, I don’t have data on that—can you rephrase?").send()
         return
 
-    # 4b) assemble context
-    context = "\n\n".join(doc.page_content for doc, score in docs_and_scores)
+    # 2) assemble context
+    context = "\n\n".join(doc.page_content for doc, _ in docs_and_scores)
     system_prompt = (
-        "You are Jun Le’s personal assistant helping to answer people's question about him. Use the following context to answer:\n\n"
+        "You are Jun Le’s personal assistant helping to answer questions about him.\n\n"
         + context
     )
 
+    # 3) build message blocks
     msgs = [
-        {"role": "system", "content": [{"text": system_prompt}]},
-        {"role": "user",   "content": [{"text": user_text}]}
+        {
+          "role": "system",
+          "content": [
+            {"contentType": "text/plain", "text": system_prompt}
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {"contentType": "text/plain", "text": user_text}
+          ]
+        }
     ]
 
-    # 4c) stream the LLM’s answer
+    # 4) stream the answer
     reply = Message(content="")
     async for chunk in converse_stream(MODEL_ID, msgs):
         await reply.stream(chunk)
     await reply.send()
+
 
