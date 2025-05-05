@@ -1,22 +1,13 @@
 [UI]
-name       = "Chat with Jun Le"
-github     = "https://github.com/driedsoba"
-custom_css = "/public/stylesheet.css"
+# The display name of your app & chatbot
+name                   = "Chat with Jun Le"
+# GitHub icon/link in the header
+github                 = "https://github.com/driedsoba"
 
-# Light theme
-[UI.theme.light]
-background = "rgb(238,238,238)"   # #EEEEEE
-paper      = "#FFFFFF"
-  [UI.theme.light.primary]
-  main  = "#00ADB5"
-  light = "#60EEDD"
-  dark  = "#007F7F"
+# control Chain-of-Thought visibility ("hidden" | "tool_call" | "full")
+cot                    = "full"
+# large content collapsed by default
+default_collapse_content = true
+# sub-messages expanded by default
+default_expand_messages  = false
 
-# Dark theme
-[UI.theme.dark]
-background = "rgb(34,40,49)"      # #222831
-paper      = "rgb(57,62,70)"      # #393E46
-  [UI.theme.dark.primary]
-  main  = "#00ADB5"
-  light = "#33F2EC"
-  dark  = "#008C8A"

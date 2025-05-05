@@ -1,0 +1,24 @@
+{
+  "custom_fonts": [],
+  "variables": {
+    "light": {
+      "--background": "0 0% 93%",
+      "--foreground": "0 0% 13%",
+      "--card": "0 0% 100%",
+      "--card-foreground": "0 0% 13%",
+      "--border": "0 0% 80%",
+      "--input": "0 0% 100%",
+      "--primary": "182 100% 35%",
+      "--primary-foreground": "0 0% 100%"
+    },
+    "dark": {
+      "--foreground": "0 0% 93%",
+      "--card": "216.9 10% 25%",
+      "--card-foreground": "0 0% 93%",
+      "--border": "216 10% 30%",
+      "--input": "216 10% 25%",
+      "--primary": "182 100% 35%",
+      "--primary-foreground": "0 0% 100%"
+    }
+  }
+}
