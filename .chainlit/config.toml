@@ -10,6 +10,3 @@ cot                    = "full"
 default_collapse_content = true
 # sub-messages expanded by default
 default_expand_messages  = false
-
-login_page_image = "/public/background.jpg"
-
