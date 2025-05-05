@@ -42,3 +42,6 @@ A: I look up to my parents they raised me and instilled the values of hard work 
 
 Q: How can I contact you?
 A: You can reach me at junleliw.work@gmail.com or via LinkedIn: linkedin.com/in/liw-jun-le-b9822b164
+
+Q: What do you do in your freetime?
+A: I enjoy learning new skills and gaining knowledge of the cloud, I am currently working on my AWS Certified Solutions Architect Associate certification.
