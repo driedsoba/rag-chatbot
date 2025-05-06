@@ -20,21 +20,19 @@ AWS_REGION  = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 S3_BUCKET   = os.getenv("S3_BUCKET")
 EMBED_MODEL = os.getenv("EMBED_MODEL_ID", "amazon.titan-embed-text-v1")
 LLM_MODEL   = os.getenv("LLM_MODEL_ID",   "amazon.titan-text-express-v1")
-
 # ────────────────────────────────────────────────────────────────────────────
+
 # 1) Fetch FAQ from S3
 s3 = boto3.client("s3", region_name=AWS_REGION)
 os.makedirs("data", exist_ok=True)
 s3.download_file(S3_BUCKET, "data/faq.txt", "data/faq.txt")
 
-# ────────────────────────────────────────────────────────────────────────────
 # 2) Load & chunk
 loader   = DirectoryLoader("data", glob="**/*.txt", loader_cls=TextLoader)
 docs     = loader.load()
 splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 chunks   = splitter.split_documents(docs)
 
-# ────────────────────────────────────────────────────────────────────────────
 # 3) Embed + FAISS (persist once)
 embed_model = BedrockEmbeddings(model_id=EMBED_MODEL, region_name=AWS_REGION)
 if os.path.exists("faiss_index"):
@@ -48,9 +46,8 @@ else:
     vector_db.save_local("faiss_index")
 retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 
-# ────────────────────────────────────────────────────────────────────────────
-# 4) Prompt: two‐sentence max, no extra commentary
-STUFF_PROMPT = """You are Jun Le’s personal assistant. Answer **in two sentences max**, with **no extra commentary**—just the answer.
+# 4) Custom “paraphrase in two sentences” prompt
+STUFF_PROMPT = """You are Jun Le’s friendly assistant.  Answer in **at most two sentences** and **paraphrase** rather than copy.
 
 Context:
 {context}
@@ -61,7 +58,6 @@ Question:
 Answer:"""
 prompt = PromptTemplate(input_variables=["context", "question"], template=STUFF_PROMPT)
 
-# ────────────────────────────────────────────────────────────────────────────
 # 5) LLM + conversational chain w/ memory
 llm = Bedrock(
     model_id=LLM_MODEL,
@@ -76,30 +72,26 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     retriever=retriever,
     memory=memory,
     chain_type="stuff",
-    # <— use chain_type_kwargs, not combine_docs_chain_kwargs
-    chain_type_kwargs={"prompt": prompt},
+    combine_docs_chain_kwargs={"prompt": prompt},
 )
 
 # ────────────────────────────────────────────────────────────────────────────
-# 6) Greet the user on load
+# 6) Greet the user as soon as the page loads
 @cl.on_chat_start
 async def start():
     await cl.Message(
         content="👋 Hi! I’m Jun Le’s personal assistant – ask me anything about him."
     ).send()
 
-# ────────────────────────────────────────────────────────────────────────────
 # 7) Handle incoming questions
 @cl.on_message
 async def main(message: cl.Message):
     user_text = message.content.strip()
 
-    # “I don’t know” fallback if relevance too low
+    # “I don’t know” fallback
     docs_and_scores = vector_db.similarity_search_with_score(user_text, k=5)
     if not docs_and_scores or docs_and_scores[0][1] < 0.1:
-        await cl.Message(
-            content="Sorry, I don’t have that info—could you rephrase?"
-        ).send()
+        await cl.Message(content="Sorry, I don’t have that info—could you rephrase?").send()
         return
 
     # Run the chain and reply
