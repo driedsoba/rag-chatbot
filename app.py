@@ -1,7 +1,7 @@
 import os
+import chainlit as cl
 from dotenv import load_dotenv
 import boto3
-import chainlit as cl
 
 from langchain_community.embeddings.bedrock import BedrockEmbeddings
 from langchain_community.llms.bedrock import Bedrock
@@ -21,17 +21,19 @@ EMBED_MODEL = os.getenv("EMBED_MODEL_ID", "amazon.titan-embed-text-v1")
 LLM_MODEL   = os.getenv("LLM_MODEL_ID",   "amazon.titan-text-express-v1")
 
 # ────────────────────────────────────────────────────────────────────────────
-# 1) Fetch FAQ from S3 (runs once on container start)
+# 1) Fetch FAQ from S3 (once on container start)
 s3 = boto3.client("s3", region_name=AWS_REGION)
 os.makedirs("data", exist_ok=True)
 s3.download_file(S3_BUCKET, "data/faq.txt", "data/faq.txt")
 
+# ────────────────────────────────────────────────────────────────────────────
 # 2) Load & chunk
 loader   = DirectoryLoader("data", glob="**/*.txt", loader_cls=TextLoader)
 docs     = loader.load()
 splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 chunks   = splitter.split_documents(docs)
 
+# ────────────────────────────────────────────────────────────────────────────
 # 3) Embed + FAISS (persist once)
 embed_model = BedrockEmbeddings(model_id=EMBED_MODEL, region_name=AWS_REGION)
 if os.path.exists("faiss_index"):
@@ -44,10 +46,11 @@ else:
     vector_db = FAISS.from_documents(chunks, embed_model)
     vector_db.save_local("faiss_index")
 
-# We’ll pull top-k=5 chunks at query time
+# Top-5 retrieval at query time
 retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 
-# 4) Two-sentence paraphrase prompt (must include {context})
+# ────────────────────────────────────────────────────────────────────────────
+# 4) Two-sentence paraphrase prompt
 STUFF_PROMPT = """
 You are Jun Le’s friendly assistant. Answer in **at most two sentences** and **paraphrase** rather than copy.
 
@@ -64,6 +67,7 @@ prompt = PromptTemplate(
     template=STUFF_PROMPT
 )
 
+# ────────────────────────────────────────────────────────────────────────────
 # 5) Configure LLM + conversational chain w/ memory
 llm = Bedrock(
     model_id=LLM_MODEL,
@@ -78,9 +82,7 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     retriever=retriever,
     memory=memory,
     chain_type="stuff",
-    # let the chain pull chat_history out of our memory
-    get_chat_history=lambda msgs: msgs,
-    # inject our custom two-sentence paraphrase prompt
+    get_chat_history=lambda vars: vars["chat_history"],
     combine_docs_chain_kwargs={"prompt": prompt},
 )
 
@@ -92,12 +94,13 @@ async def start():
         content="👋 Hi! I’m Jun Le’s personal assistant – ask me anything about him."
     ).send()
 
+# ────────────────────────────────────────────────────────────────────────────
 # 7) Handle incoming messages
 @cl.on_message
 async def main(message: cl.Message):
     user_text = message.content.strip()
 
-    # Quick “I don’t know” fallback if retrieval is very low-score
+    # Quick “I don’t know” fallback
     docs_and_scores = vector_db.similarity_search_with_score(user_text, k=5)
     if not docs_and_scores or docs_and_scores[0][1] < 0.1:
         await cl.Message(
@@ -105,14 +108,11 @@ async def main(message: cl.Message):
         ).send()
         return
 
-    # Pull the current chat history from memory
-    history = memory.load_memory_variables({})["chat_history"]
-
-    # Invoke the chain with both question + history
+    # Run the chain with both question + memory
     res = await qa_chain.ainvoke({
         "question": user_text,
-        "chat_history": history
+        "chat_history": memory.load_memory_variables({})["chat_history"]
     })
 
-    # Send the two-sentence paraphrased answer back to the user
+    # Send back the two-sentence paraphrased answer
     await cl.Message(content=res["answer"]).send()
