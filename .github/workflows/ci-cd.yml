@@ -1,0 +1,75 @@
+name: CI/CD → ECR & EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker image to ECR
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ap-southeast-1
+      ECR_REPO: rag-chatbot
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag & push
+        run: |
+          IMAGE_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest
+          docker build -t $IMAGE_URI .
+          docker push      $IMAGE_URI
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (for path context)
+        uses: actions/checkout@v3
+
+      - name: Start SSH agent and add key
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy container on EC2 via SSH
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION:     ap-southeast-1
+          ECR_REPO:       rag-chatbot
+          EC2_USER:       ${{ secrets.EC2_SSH_USER }}
+          EC2_HOST:       ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+            # Ensure Docker is logged in to ECR
+            aws ecr get-login-password --region ${AWS_REGION} \
+              | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+            # Pull & restart container
+            IMAGE=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest
+            docker pull $IMAGE
+            docker stop rag-chatbot || true
+            docker rm   rag-chatbot || true
+            docker run -d \
+              --name rag-chatbot \
+              -p 127.0.0.1:8000:8000 \
+              -e AWS_DEFAULT_REGION=${AWS_REGION} \
+              -e S3_BUCKET=rag-faqstore \
+              --restart unless-stopped \
+              $IMAGE
+          EOF

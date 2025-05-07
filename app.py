@@ -13,14 +13,14 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 
-# ────────────────────────────────────────────────────────────────────────────
+
 # 0) Load ENV
 load_dotenv()
 AWS_REGION  = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 S3_BUCKET   = os.getenv("S3_BUCKET")
 EMBED_MODEL = os.getenv("EMBED_MODEL_ID", "amazon.titan-embed-text-v1")
 LLM_MODEL   = os.getenv("LLM_MODEL_ID",   "amazon.titan-text-express-v1")
-# ────────────────────────────────────────────────────────────────────────────
+
 
 # 1) Fetch FAQ from S3
 s3 = boto3.client("s3", region_name=AWS_REGION)
@@ -75,7 +75,6 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     combine_docs_chain_kwargs={"prompt": prompt},
 )
 
-# ────────────────────────────────────────────────────────────────────────────
 # 6) Greet the user as soon as the page loads
 @cl.on_chat_start
 async def start():
