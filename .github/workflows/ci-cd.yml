@@ -50,7 +50,7 @@ jobs:
           aws-region:            ${{ env.AWS_REGION }}
 
       - name: Deploy container via SSM
-        uses: aws-actions/aws-ssm-run-command@v2
+        uses: aws-actions/aws-ssm-run-command@v1
         with:
           document-name: AWS-RunShellScript
           instance-ids:  ${{ secrets.EC2_INSTANCE_ID }}
