@@ -1,73 +1,44 @@
-name: CI/CD → ECR & EC2 via SSM
+name: CI/CD Pipeline
 
-# run on every push to main
 on:
   push:
-    branches: [ main ]
-
-# share these across all jobs
-env:
-  AWS_REGION: ap-southeast-1       # your Singapore region
-  ECR_REPOSITORY: rag-chatbot      # name of your ECR repo
-  IMAGE_TAG: latest
-  S3_BUCKET: rag-faqstore          # your bucket for faq.txt
+    branches:
+      - main
 
 jobs:
   build-and-push:
-    name: Build & Push Docker image to ECR
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
+        uses: actions/checkout@v2
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ env.AWS_REGION }}
-
+          aws-region: ${{ secrets.AWS_REGION }}
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build, tag, and push image
+      - name: Build, tag, and push Docker image
         run: |
-          ECR_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          docker build \
-            --tag $ECR_URI/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
-          docker push $ECR_URI/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest .
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
 
   deploy:
-    name: Deploy to EC2 via SSM
-    runs-on: ubuntu-latest
     needs: build-and-push
+    runs-on: ubuntu-latest
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Configure AWS credentials for deployment
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ env.AWS_REGION }}
-
-      - name: Deploy container via SSM
-        uses: aws-actions/aws-ssm-run-command@v1
-        with:
-          document-name: AWS-RunShellScript
-          instance-ids:  ${{ secrets.EC2_INSTANCE_ID }}
-          parameters: |
-            commands=[
-              # authenticate to ECR
-              "aws ecr get-login-password --region ${{ env.AWS_REGION }} \
-                | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
-
-              # pull & restart container
-              "docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
-              "docker stop rag-chatbot || true",
-              "docker rm rag-chatbot   || true",
-              "docker run -d \\
-                 --name rag-chatbot \\
-                 -p 127.0.0.1:8000:8000 \\
-                 -e AWS_DEFAULT_REGION=${{ env.AWS_REGION }} \\
-                 -e S3_BUCKET=${{ env.S3_BUCKET }} \\
-                 --restart unless-stopped \\
-                 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"]
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Deploy Docker container to EC2 via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploying Docker container" \
+            --parameters commands='["docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest", "docker stop myapp || true", "docker rm myapp || true", "docker run -d --name myapp ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest"]' \
+            --region ${{ secrets.AWS_REGION }}
