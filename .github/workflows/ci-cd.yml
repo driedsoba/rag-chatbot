@@ -1,16 +1,14 @@
 name: CI/CD → ECR & EC2 via SSM
 
-# run on every push to main
 on:
   push:
     branches: [ main ]
 
-# share these across all jobs
 env:
-  AWS_REGION: ap-southeast-1       
-  ECR_REPOSITORY: rag-chatbot      
+  AWS_REGION: ap-southeast-1       # ECR, S3 and SSM calls
+  ECR_REPOSITORY: rag-chatbot
   IMAGE_TAG: latest
-  S3_BUCKET: rag-faqstore         
+  S3_BUCKET: rag-faqstore
 
 jobs:
   build-and-push:
@@ -20,10 +18,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Remove old Chainlit config  
-        run: rm -f .chainlit/config.toml || true
+      - name: Remove stale Chainlit config
+        # before docker build, so new image has no old config.toml
+        run: rm -rf .chainlit/config.toml || true
 
-      - name: Configure AWS credentials
+      - name: Configure AWS creds
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -45,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
-      - name: Configure AWS credentials
+      - name: Configure AWS creds
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -58,10 +57,23 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --parameters 'commands=[
-              "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
+              # 1) Log in to ECR
+              "aws ecr get-login-password \
+                 --region ${{ env.AWS_REGION }} \
+               | docker login --username AWS \
+                 --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
+
+              # 2) Pull & restart container,
               "docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker stop rag-chatbot || true",
-              "docker rm rag-chatbot || true",
-              "docker run -d --name rag-chatbot -p 127.0.0.1:8000:8000 -e AWS_DEFAULT_REGION=${{ env.AWS_REGION }} -e S3_BUCKET=${{ env.S3_BUCKET }} --restart unless-stopped ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+              "docker rm rag-chatbot   || true",
+              "docker run -d \
+                 --name rag-chatbot \
+                 -p 127.0.0.1:8000:8000 \
+                 -e AWS_DEFAULT_REGION=us-east-1 \
+                 -e AWS_REGION=${{ env.AWS_REGION }} \
+                 -e S3_BUCKET=${{ env.S3_BUCKET }} \
+                 --restart unless-stopped \
+                 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
             ]' \
             --region ${{ env.AWS_REGION }}
