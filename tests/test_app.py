@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 # Add the project directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -67,7 +67,9 @@ class TestAppFunctionality(unittest.TestCase):
 
             # Set up the mocked return instances
             mock_embeddings.return_value = MagicMock()
-            mock_llm.return_value = MagicMock()
+            mock_llm_instance = MagicMock()
+            mock_llm_instance.invoke = AsyncMock()  # Mimic Runnable behavior
+            mock_llm.return_value = mock_llm_instance
 
             from app import LLM_MODEL, EMBED_MODEL, AWS_REGION
 
