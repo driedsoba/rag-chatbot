@@ -15,7 +15,7 @@ class TestAppFunctionality(unittest.TestCase):
         mock_s3 = MagicMock()
         mock_boto3_client.return_value = mock_s3
 
-        # Patch all the config.py side‐effects
+        # Patch all the config.py side-effects
         with patch('os.makedirs'), \
              patch('langchain_community.embeddings.bedrock.BedrockEmbeddings'), \
              patch('langchain_community.llms.bedrock.Bedrock'), \
@@ -25,9 +25,9 @@ class TestAppFunctionality(unittest.TestCase):
             # Import from config, not app
             from config import s3, AWS_REGION
 
-        mock_boto3_client.assert_called_with("s3", region_name="region1")
+        # Ensure the mock was called with the correct arguments
+        mock_boto3_client.assert_called_once_with("s3", region_name="region1")
         self.assertEqual(AWS_REGION, "region1")
-
 
     @patch.dict(os.environ, {"AWS_DEFAULT_REGION": "region1"})
     def test_vector_db_retriever(self):
@@ -41,14 +41,15 @@ class TestAppFunctionality(unittest.TestCase):
 
             # Make FAISS.load_local / from_documents return our fake
             mock_vector_db = MagicMock()
+            mock_vector_db.as_retriever = MagicMock()  # Ensure as_retriever is mocked
             mock_faiss.load_local.return_value = mock_vector_db
             mock_faiss.from_documents.return_value = mock_vector_db
 
             # Import retriever from config
             from config import retriever
 
-        mock_vector_db.as_retriever.assert_called_with(search_kwargs={"k": 5})
-
+        # Ensure the mock was called with the correct arguments
+        mock_vector_db.as_retriever.assert_called_once_with(search_kwargs={"k": 5})
 
     @patch.dict(os.environ, {
         "AWS_DEFAULT_REGION": "region2",
@@ -67,7 +68,7 @@ class TestAppFunctionality(unittest.TestCase):
             # Return dummy embeddings & llm instances
             mock_embeddings.return_value = MagicMock()
             mock_llm_instance = MagicMock()
-            mock_llm_instance.invoke = AsyncMock()
+            mock_llm_instance.invoke = AsyncMock()  # Mimic Runnable behavior
             mock_llm.return_value = mock_llm_instance
 
             from config import LLM_MODEL, EMBED_MODEL, AWS_REGION
@@ -75,11 +76,12 @@ class TestAppFunctionality(unittest.TestCase):
         # Should pick up the AWS_DEFAULT_REGION we set
         self.assertEqual(AWS_REGION, "region2")
 
-        mock_embeddings.assert_called_with(
+        # Verify that the Bedrock embeddings and LLM were called with correct parameters
+        mock_embeddings.assert_called_once_with(
             model_id=EMBED_MODEL,
             region_name="region2"
         )
-        mock_llm.assert_called_with(
+        mock_llm.assert_called_once_with(
             model_id=LLM_MODEL,
             region_name="region2",
             streaming=True,
