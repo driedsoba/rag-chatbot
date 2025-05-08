@@ -1,6 +1,12 @@
-langchain
-langchain-community
-boto3
-faiss-cpu
-python-dotenv
-chainlit
+# Core dependencies
+langchain==0.1.4
+langchain-community==0.0.19
+boto3==1.29.6
+faiss-cpu==1.7.4
+python-dotenv==1.0.0
+chainlit==1.0.101
+
+# Testing dependencies
+pytest==7.4.0
+pytest-mock==3.11.1
+boto3-stubs[s3]==1.29.6
