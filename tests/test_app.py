@@ -3,6 +3,9 @@ import sys
 import unittest
 from unittest.mock import patch, MagicMock
 
+# Add the project directory to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # Mock chainlit modules for tests
 sys.modules['chainlit'] = MagicMock()
 sys.modules['chainlit.message'] = MagicMock()
