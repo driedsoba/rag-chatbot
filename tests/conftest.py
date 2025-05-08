@@ -1,7 +1,8 @@
-import sys
+import sys, os
 from unittest.mock import MagicMock
 
-# Mock chainlit and its dependencies to avoid configuration issues
+# ensure project root is on PYTHONPATH for `import app`
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Create mock for chainlit
 mock_chainlit = MagicMock()

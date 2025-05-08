@@ -27,7 +27,7 @@ class TestAppFunctionality(unittest.TestCase):
     def test_vector_db_retriever(self, mock_faiss):
         """Test that vector retriever is configured with k=5"""
         # Import critical pieces first
-        with patch('os.makedirs'), patch('boto3.client'), patch('s3.download_file'):
+        with patch('os.makedirs'), patch('boto3.client'), patch('app.s3.download_file'):
             # Setup mocks
             mock_vector_db = MagicMock()
             mock_faiss.load_local.return_value = mock_vector_db
@@ -53,7 +53,7 @@ class TestAppFunctionality(unittest.TestCase):
         mock_llm.return_value = mock_llm_instance
         
         # Import with mocks to avoid real S3 calls
-        with patch('os.makedirs'), patch('boto3.client'), patch('s3.download_file'), \
+        with patch('os.makedirs'), patch('boto3.client'), patch('app.s3.download_file'), \
              patch('os.path.exists', return_value=True), \
              patch('langchain_community.vectorstores.faiss.FAISS'):
             
