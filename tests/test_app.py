@@ -3,68 +3,82 @@ import sys
 import unittest
 from unittest.mock import patch, MagicMock
 
-# Mock chainlit and its dependencies before importing app
+# Mock chainlit modules for tests
 sys.modules['chainlit'] = MagicMock()
 sys.modules['chainlit.message'] = MagicMock()
+sys.modules['chainlit.config'] = MagicMock()
+sys.modules['chainlit.action'] = MagicMock()
+sys.modules['chainlit.telemetry'] = MagicMock()
 
 class TestAppFunctionality(unittest.TestCase):
-    
+
+    @patch.dict(os.environ, {"AWS_DEFAULT_REGION": "region1"})
     @patch('boto3.client')
-    @patch.dict(os.environ, {"AWS_REGION": "ap-southeast-1", "AWS_DEFAULT_REGION": "us-east-1"})
     def test_s3_connection(self, mock_boto3_client):
-        """Test that S3 connection works with mocked client"""
+        """Test that S3 client is created with the correct region."""
         mock_s3 = MagicMock()
         mock_boto3_client.return_value = mock_s3
-        
-        # Import locally
-        with patch('os.makedirs'):  # Prevent directory creation
+
+        # Patch everything needed to safely import app
+        with patch('os.makedirs'), \
+             patch('langchain_community.embeddings.bedrock.BedrockEmbeddings'), \
+             patch('langchain_community.llms.bedrock.Bedrock'), \
+             patch('langchain_community.vectorstores.faiss.FAISS'), \
+             patch('os.path.exists', return_value=True):
             from app import s3, AWS_REGION
-        
-        # Verify s3 client was created with expected region
-        mock_boto3_client.assert_called_with('s3', region_name=AWS_REGION)
-    
-    @patch('langchain_community.vectorstores.faiss.FAISS')
-    def test_vector_db_retriever(self, mock_faiss):
-        """Test that vector retriever is configured with k=5"""
-        # Import critical pieces first
-        with patch('os.makedirs'), patch('boto3.client'), patch('app.s3.download_file'):
-            # Setup mocks
+
+        mock_boto3_client.assert_called_with("s3", region_name="region1")
+        self.assertEqual(AWS_REGION, "region1")
+
+    @patch.dict(os.environ, {"AWS_DEFAULT_REGION": "region1"})
+    def test_vector_db_retriever(self):
+        """Test that vector retriever is configured with k=5."""
+        # Patch FAISS and AWS clients so the app import is safe
+        with patch('langchain_community.embeddings.bedrock.BedrockEmbeddings'), \
+             patch('langchain_community.llms.bedrock.Bedrock'), \
+             patch('langchain_community.vectorstores.faiss.FAISS') as mock_faiss, \
+             patch('boto3.client'), patch('os.makedirs'), \
+             patch('os.path.exists', return_value=True):
+
             mock_vector_db = MagicMock()
             mock_faiss.load_local.return_value = mock_vector_db
             mock_faiss.from_documents.return_value = mock_vector_db
-            
-            # Mock os.path.exists to return True 
-            with patch('os.path.exists', return_value=True):
-                from app import retriever
-            
-            # Verify retriever was called with k=5
-            mock_vector_db.as_retriever.assert_called_with(search_kwargs={"k": 5})
-    
-    @patch('langchain_community.llms.bedrock.Bedrock')
-    @patch('langchain_community.embeddings.bedrock.BedrockEmbeddings')
-    @patch.dict(os.environ, {"AWS_REGION": "ap-southeast-1", "AWS_DEFAULT_REGION": "us-east-1"})
-    def test_bedrock_region_configuration(self, mock_embeddings, mock_llm):
-        """Test that Bedrock models use us-east-1 region"""
-        # Setup mocks
-        mock_embed_instance = MagicMock()
-        mock_embeddings.return_value = mock_embed_instance
-        
-        mock_llm_instance = MagicMock()
-        mock_llm.return_value = mock_llm_instance
-        
-        # Import with mocks to avoid real S3 calls
-        with patch('os.makedirs'), patch('boto3.client'), patch('app.s3.download_file'), \
-             patch('os.path.exists', return_value=True), \
-             patch('langchain_community.vectorstores.faiss.FAISS'):
-            
-            # Import directly to get constants
+
+            from app import retriever
+
+        mock_vector_db.as_retriever.assert_called_with(search_kwargs={"k": 5})
+
+    @patch.dict(os.environ, {
+        "AWS_DEFAULT_REGION": "region2",
+        "EMBED_MODEL_ID": "embedX",
+        "LLM_MODEL_ID": "llmY"
+    })
+    def test_bedrock_region_configuration(self):
+        """Test that Bedrock models use the correct region and model IDs."""
+        with patch('langchain_community.embeddings.bedrock.BedrockEmbeddings') as mock_embeddings, \
+             patch('langchain_community.llms.bedrock.Bedrock') as mock_llm, \
+             patch('langchain_community.vectorstores.faiss.FAISS'), \
+             patch('boto3.client'), \
+             patch('os.makedirs'), \
+             patch('os.path.exists', return_value=True):
+
+            # Set up the mocked return instances
+            mock_embeddings.return_value = MagicMock()
+            mock_llm.return_value = MagicMock()
+
             from app import LLM_MODEL, EMBED_MODEL, AWS_REGION
-        
-        # Verify correct model IDs and region are used
-        mock_embeddings.assert_called_with(model_id=EMBED_MODEL, region_name=AWS_REGION)
+
+        # The AWS_REGION should come from the AWS_DEFAULT_REGION we set
+        self.assertEqual(AWS_REGION, "region2")
+
+        # Verify that the Bedrock embeddings and LLM were called with correct parameters
+        mock_embeddings.assert_called_with(
+            model_id=EMBED_MODEL,
+            region_name="region2"
+        )
         mock_llm.assert_called_with(
             model_id=LLM_MODEL,
-            region_name=AWS_REGION,
+            region_name="region2",
             streaming=True,
             model_kwargs={"temperature": 0.2, "maxTokenCount": 512}
         )
