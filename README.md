@@ -2,7 +2,6 @@
 
 How “ChatWithJunLe” is standing up as a personalised RAG chatbot.
 
----
 
 ## 1. Architecture in a Nutshell
 
@@ -21,7 +20,6 @@ How “ChatWithJunLe” is standing up as a personalised RAG chatbot.
 - **GoDaddy (or any DNS)**  
   Points custom domain at the EC2 public IP.
 
----
 
 ## 2. Deployment Overview
 
