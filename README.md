@@ -1,7 +1,9 @@
 # ChatWithJunLe
 
 How “ChatWithJunLe” is standing up as a personalised RAG chatbot.
-
+<p align="center">
+  <img src="chatbot.drawio.png" alt="ChatWithJunLe Architecture" width="700"/>
+</p>
 
 ## 1. Architecture in a Nutshell
 
